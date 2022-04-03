@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
-	"os"
 	"time"
 )
 
@@ -16,7 +15,11 @@ type pcap struct {
 func (p *pcap) defaultFileHeader() []byte {
 	return p.fileHeader
 }
+
 func (p *pcap) newPacketHeader(l int) io.Reader {
+	if l == 0 {
+		return bytes.NewBuffer(nil)
+	}
 	return p.packetHeader.NewPacketHeader(l)
 }
 
@@ -42,13 +45,13 @@ func DefaultPcapHeader() *PcapGlobalHear {
 
 func (h *PcapGlobalHear) Marshal() []byte {
 	buf := make([]byte, 24)
-	binary.LittleEndian.PutUint32(buf[0:4], h.Magic)
-	binary.LittleEndian.PutUint16(buf[4:6], h.Major)
-	binary.LittleEndian.PutUint16(buf[6:8], h.Minor)
-	binary.LittleEndian.PutUint32(buf[8:12], h.ThisZone)
-	binary.LittleEndian.PutUint32(buf[12:16], h.SigFigs)
-	binary.LittleEndian.PutUint32(buf[16:20], h.SnapLen)
-	binary.LittleEndian.PutUint32(buf[20:24], h.LinkType)
+	binary.BigEndian.PutUint32(buf[0:4], h.Magic)
+	binary.BigEndian.PutUint16(buf[4:6], h.Major)
+	binary.BigEndian.PutUint16(buf[6:8], h.Minor)
+	binary.BigEndian.PutUint32(buf[8:12], h.ThisZone)
+	binary.BigEndian.PutUint32(buf[12:16], h.SigFigs)
+	binary.BigEndian.PutUint32(buf[16:20], h.SnapLen)
+	binary.BigEndian.PutUint32(buf[20:24], h.LinkType)
 	return buf
 }
 
@@ -60,12 +63,24 @@ type PacketHeader struct {
 }
 
 func (p *PacketHeader) Marshal() []byte {
-	buf := make([]byte, 16)
-	binary.LittleEndian.PutUint32(buf[0:4], p.TimestampH)
-	binary.LittleEndian.PutUint32(buf[4:8], p.TimestampL)
-	binary.LittleEndian.PutUint32(buf[8:12], p.CapLen)
-	binary.LittleEndian.PutUint32(buf[12:16], p.Len)
-	return buf
+	return []byte{
+		byte(p.TimestampH >> 24),
+		byte(p.TimestampH >> 16),
+		byte(p.TimestampH >> 8),
+		byte(p.TimestampH),
+		byte(p.TimestampL >> 24),
+		byte(p.TimestampL >> 16),
+		byte(p.TimestampL >> 8),
+		byte(p.TimestampL),
+		byte(p.CapLen >> 24),
+		byte(p.CapLen >> 16),
+		byte(p.CapLen >> 8),
+		byte(p.CapLen),
+		byte(p.Len >> 24),
+		byte(p.Len >> 16),
+		byte(p.Len >> 8),
+		byte(p.Len),
+	}
 }
 
 func (p *PacketHeader) NewPacketHeader(l int) io.Reader {
@@ -96,13 +111,4 @@ func PacketGenerator(Data []byte, Port uint16) []byte {
 	head[ipLen] = buf[0]
 	head[ipLen+1] = buf[1]
 	return append(head, data...)
-}
-
-func isDirExist(dir string) bool {
-	if _, err := os.Stat(dir); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
 }

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"os"
 	"strconv"
@@ -37,8 +38,22 @@ type file struct {
 	error        error
 }
 
+func (f *file) String() string {
+	return spew.Sdump(
+		"path",f.path,
+		"name",f.name,
+		"user",f.user,
+		"size",f.size,
+		"maxSize",f.maxSize,
+		"num",f.num,
+		"maxNum",f.maxNum,
+		"bufSize",f.bufSize,
+		"historyFiles",f.historyFiles,
+		)
+}
+
 func (f *file) fileNumCheck() error {
-	if f.num < f.maxNum {
+	if len(f.historyFiles) < f.maxNum {
 		return nil
 	}
 	file:=f.historyFiles[0]
@@ -127,6 +142,14 @@ func (f *file) Write(p []byte) (n int, err error) {
 }
 
 func (f *file) Close() error {
+	defer func() {
+		f.name = ""
+		f.file = nil
+		f.buf = nil
+		f.bufWait.Reset()
+		f.size = 0
+		f.historyFiles = nil
+	}()
 	if len(f.bufWait.Bytes()) > 0 {
 		if err := f.newFile(); err != nil {
 			return errors.WithStack(err)

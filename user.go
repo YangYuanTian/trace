@@ -2,13 +2,19 @@ package trace
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"io"
 	"sync"
 )
+type ID string
+
+func (i ID) String() string {
+	return string(i)
+}
 
 type user struct {
-	key uint64
 	ids map[string]bool
+	isTrace bool
 	m   sync.Mutex
 	w   io.WriteCloser
 }
@@ -16,17 +22,15 @@ type user struct {
 type CreateWriteCloser interface {
 	NewWriteCloser(fmt.Stringer) io.WriteCloser
 }
+
 type CreateReader interface {
 	NewReader(fmt.Stringer) io.Reader
 }
 
 type users struct {
 	users    sync.Map //map to user info
-	ids      sync.Map //map to key
-	key      uint64
-	m        sync.Mutex
-	start    bool
 	creator  CreateWriteCloser
+	useTrace bool
 	err      error
 }
 
@@ -38,76 +42,60 @@ func (u *user) String() string {
 	return name
 }
 
-func (u *users) newKey(ids ...string) uint64 {
+
+func (u *user) addUserID(ids ...string) *user {
 	u.m.Lock()
 	defer u.m.Unlock()
-	u.key++
-	for i := range ids {
-		u.ids.Store(ids[i], u.key)
-	}
-	return u.key
-}
-
-func (u *users) findKey(ids ...string) (uint64, bool) {
-	for  _,id := range ids {
-		if key, ok := u.ids.Load(id); ok {
-			return key.(uint64), true
-		}
-	}
-	return 0, false
-}
-
-func (u *users) findUser(key uint64) *user {
-	if usr, ok := u.users.Load(key); ok {
-		return usr.(*user)
-	}
-	usr := &user{
-		key: key,
-		ids: make(map[string]bool),
-	}
-	u.users.Store(key, usr)
-	usr.w = u.creator.NewWriteCloser(usr)
-	return usr
-}
-
-func (u *users) SetNames(ids ...fmt.Stringer) {
-	if len(ids) == 0 {
-		return
-	}
-	names := make([]string, len(ids))
-	for i := range ids {
-		names[i] = ids[i].String()
-	}
-	key, ok := u.findKey(names...)
-	switch !ok {
-	case true:
-		key = u.newKey(names...)
-	case false:
-		for i := range names {
-			u.ids.Store(names[i], key)
-		}
-	}
-	u.findUser(key).addName(names...)
-}
-
-func (u *user) addName(ids ...string) *user {
-	u.m.Lock()
-	defer u.m.Unlock()
-	for i := range ids {
-		u.ids[ids[i]] = true
+	for _, id := range ids {
+		u.ids[id] = true
 	}
 	return u
 }
 
-func (u *users) getInfo(id string) *user {
-	if key, ok := u.findKey(id); ok {
-		return u.findUser(key)
+func (u *users)newUser() *user {
+	usr:= &user{ids:make(map[string]bool)}
+	usr.w = u.creator.NewWriteCloser(usr)
+	return usr
+}
+
+func (u *users) getUser(id fmt.Stringer) *user {
+	if usr:=u.findUser(id.String());usr != nil {
+		return usr
 	}
-	return u.findUser(u.newKey(id)).addName(id)
+	return u.AddUser(id)
+}
+
+func (u *users) AddUser(ids ...fmt.Stringer) (usr *user) {
+	names:=make([]string,len(ids))
+	for i,id := range ids {
+		names[i] = id.String()
+	}
+	defer func() {
+		for _,id := range names {
+			u.users.LoadOrStore(id,usr)
+		}
+		usr.addUserID(names...)
+	}()
+	if usr:=u.findUser(names...);usr != nil {
+		return usr
+	}
+	return u.newUser()
+}
+
+func (u *users) findUser(ids ...string) *user {
+	for _, id := range ids {
+		if usr,ok:=u.users.Load(id);ok {
+			return usr.(*user)
+		}
+	}
+	return nil
 }
 
 func (u *users) Write(data []io.Reader, id fmt.Stringer) error {
-	usr := u.getInfo(id.String())
+	usr := u.getUser(id)
+	if u.useTrace && !usr.isTrace {
+		return nil
+	}
 	usr.m.Lock()
 	defer usr.m.Unlock()
 	for _, r := range data {
@@ -125,4 +113,42 @@ func (u *users) Close() error {
 		return true
 	})
 	return err
+}
+
+func (u *users) Trace(id fmt.Stringer, isTrace bool) *users  {
+	u.findUser(id.String()).isTrace = isTrace
+	return u
+}
+
+func (u *users) UseTrace( isUse bool) *users {
+	u.useTrace = isUse
+	return u
+}
+
+func (u* users) isTrace(id fmt.Stringer) bool {
+	usr := u.findUser(id.String())
+	return usr.isTrace
+}
+
+func (u *users) DelUser (id fmt.Stringer) {
+	if usr:=u.findUser(id.String());usr != nil {
+		usr.w.Close()
+		for i := range usr.ids {
+			u.users.Delete(i)
+		}
+	}
+}
+
+func (u *users)GetUsrInfo(id fmt.Stringer) string {
+	usr := u.findUser(id.String())
+	return spew.Sdump(usr.w,"isTrace:",usr.isTrace)
+}
+
+func (u* users) ListUsers() string {
+	var users []string
+	u.users.Range(func(key, value interface{}) bool {
+		users = append(users, key.(string))
+		return true
+	})
+	return spew.Sdump("isUseTrace:",u.useTrace,users)
 }
