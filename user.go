@@ -125,11 +125,6 @@ func (u *users) UseTrace( isUse bool) *users {
 	return u
 }
 
-func (u* users) isTrace(id fmt.Stringer) bool {
-	usr := u.findUser(id.String())
-	return usr.isTrace
-}
-
 func (u *users) DelUser (id fmt.Stringer) {
 	if usr:=u.findUser(id.String());usr != nil {
 		usr.w.Close()
