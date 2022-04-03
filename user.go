@@ -54,7 +54,6 @@ func (u *user) addUserID(ids ...string) *user {
 
 func (u *users)newUser() *user {
 	usr:= &user{ids:make(map[string]bool)}
-	usr.w = u.creator.NewWriteCloser(usr)
 	return usr
 }
 
@@ -98,6 +97,9 @@ func (u *users) Write(data []io.Reader, id fmt.Stringer) error {
 	}
 	usr.m.Lock()
 	defer usr.m.Unlock()
+	if usr.w == nil{
+		usr.w = u.creator.NewWriteCloser(usr)
+	}
 	for _, r := range data {
 		if _, err := io.Copy(usr.w, r); err != nil {
 			return err
@@ -107,12 +109,18 @@ func (u *users) Write(data []io.Reader, id fmt.Stringer) error {
 }
 
 func (u *users) Close() error {
-	var err error
+	var e error
 	u.users.Range(func(key, value interface{}) bool {
-		err = value.(*user).w.Close()
+		if value.(*user).w == nil{
+			return true
+		}
+		if err := value.(*user).w.Close(); err != nil {
+			e = err
+		}
+		value.(*user).w = nil
 		return true
 	})
-	return err
+	return e
 }
 
 func (u *users) Trace(id fmt.Stringer, isTrace bool) *users  {

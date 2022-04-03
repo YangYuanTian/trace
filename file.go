@@ -19,6 +19,9 @@ func (f *file) SetFileMaxSize(size int) {
 func (f *file) SetFilePath(path string) {
 	f.path = path
 }
+func (f *file) SetBufSize(size int) {
+	f.bufSize = size
+}
 
 type file struct {
 	path         string
@@ -142,15 +145,7 @@ func (f *file) Write(p []byte) (n int, err error) {
 }
 
 func (f *file) Close() error {
-	defer func() {
-		f.name = ""
-		f.file = nil
-		f.buf = nil
-		f.bufWait.Reset()
-		f.size = 0
-		f.historyFiles = nil
-	}()
-	if len(f.bufWait.Bytes()) > 0 {
+	if f.bufWait.Len() > 0 {
 		if err := f.newFile(); err != nil {
 			return errors.WithStack(err)
 		}

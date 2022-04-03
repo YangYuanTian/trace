@@ -27,7 +27,7 @@ func (c *capture) init() *capture {
 	c.file.SetFileMaxNum(3)
 	c.file.SetFileMaxSize(50 * 1024 * 1024)
 	c.file.fType = "pcap"
-	c.file.bufSize = 4 * 1024 * 1024
+	c.file.bufSize = 8 * 1024
 	c.file.header = c.pcap.defaultFileHeader()
 	c.users.creator = c
 	c.pcap.fileHeader = DefaultPcapHeader().Marshal()

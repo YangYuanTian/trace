@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"runtime/debug"
 	"testing"
-	"time"
 )
 
 
@@ -38,6 +37,7 @@ func TestCapture(t *testing.T) {
 	c.AddUser(ID("TanGao"), ID("LiHua"))
 	c.UseTrace(true).Trace(ID("TanGao"),true)
 	for i := 0; i < 10000000; i++ {
+		//time.Sleep(time.Second)
 		E(c.WritePcap(PacketGenerator([]byte("hello,TanGao"), 19), ID("TanGao")))
 		E(c.WritePcap(nil, ID("TanGao")))
 		E(c.WritePcap(PacketGenerator([]byte("hello,LiHua"), 19), ID("LiHua")))
@@ -47,11 +47,10 @@ func TestCapture(t *testing.T) {
 	fmt.Println(c.GetUsrInfo(ID("TanGao")))
 	fmt.Println(c.GetUsrInfo(ID("ZiZhu")))
 	fmt.Println(c.ListUsers())
-	time.Sleep(time.Second)
 }
 
 func TestRestart(t *testing.T) {
-	for i:=0;i<10;i++{
+	for i:=0;i<1;i++{
 		TestCapture(t)
 	}
 }
