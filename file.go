@@ -43,33 +43,33 @@ type file struct {
 
 func (f *file) String() string {
 	return spew.Sdump(
-		"path",f.path,
-		"name",f.name,
-		"user",f.user,
-		"size",f.size,
-		"maxSize",f.maxSize,
-		"num",f.num,
-		"maxNum",f.maxNum,
-		"bufSize",f.bufSize,
-		"historyFiles",f.historyFiles,
-		)
+		"path", f.path,
+		"name", f.name,
+		"user", f.user,
+		"size", f.size,
+		"maxSize", f.maxSize,
+		"num", f.num,
+		"maxNum", f.maxNum,
+		"bufSize", f.bufSize,
+		"historyFiles", f.historyFiles,
+	)
 }
 
 func (f *file) fileNumCheck() error {
 	if len(f.historyFiles) < f.maxNum {
 		return nil
 	}
-	file:=f.historyFiles[0]
+	file := f.historyFiles[0]
 	f.historyFiles = f.historyFiles[1:]
 	return errors.WithStack(os.Remove(file))
 }
 
-func (f *file)filePathCheck() error {
+func (f *file) filePathCheck() error {
 	return os.MkdirAll(f.path, os.ModePerm)
 }
 
 func (f *file) createBufFile() error {
-	if err:=f.fileNumCheck();err!=nil{
+	if err := f.fileNumCheck(); err != nil {
 		return err
 	}
 	if f.file != nil && f.file.Close() != nil {
@@ -83,35 +83,35 @@ func (f *file) createBufFile() error {
 		return errors.WithStack(f.error)
 	}
 	f.buf = bufio.NewWriterSize(f.file, f.bufSize)
-	_,err:=f.buf.Write(f.header)
+	_, err := f.buf.Write(f.header)
 	return errors.WithStack(err)
 }
 
-func (f *file) preStore(p []byte) (int,error) {
+func (f *file) preStore(p []byte) (int, error) {
 	if f.size > 1000 {
-		return 0,nil
+		return 0, nil
 	}
 	nn, err := f.bufWait.Write(p)
 	if err != nil {
-		return  nn,errors.WithStack(err)
+		return nn, errors.WithStack(err)
 	}
 	f.size += nn
-	return  nn,nil
+	return nn, nil
 }
 
 func (f *file) newFile() error {
 	if f.name != "" {
 		return nil
 	}
-	f.name = f.path + "/" + f.user.String() + "."+strconv.Itoa(f.num)+"."+f.fType
-	if err:=f.filePathCheck();err!=nil{
+	f.name = f.path + "/" + f.user.String() + "." + strconv.Itoa(f.num) + "." + f.fType
+	if err := f.filePathCheck(); err != nil {
 		return errors.WithStack(err)
 	}
 	if err := f.createBufFile(); err != nil {
-		return  errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 	if _, err := f.buf.Write(f.bufWait.Bytes()); err != nil {
-		return  errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 	f.bufWait.Reset()
 	return nil
@@ -121,10 +121,10 @@ func (f *file) Write(p []byte) (n int, err error) {
 	if f.error != nil {
 		return 0, errors.WithStack(f.error)
 	}
-	if n,err:=f.preStore(p);n!=0||err!=nil{
-		return n,errors.WithStack(err)
+	if n, err := f.preStore(p); n != 0 || err != nil {
+		return n, errors.WithStack(err)
 	}
-	if err:=f.newFile();err != nil {
+	if err := f.newFile(); err != nil {
 		return 0, errors.WithStack(err)
 	}
 	nn, err := f.buf.Write(p)
@@ -135,7 +135,7 @@ func (f *file) Write(p []byte) (n int, err error) {
 	if f.size >= f.maxSize {
 		f.num++
 		f.size = 0
-		f.historyFiles=append(f.historyFiles, f.name)
+		f.historyFiles = append(f.historyFiles, f.name)
 		f.name = ""
 		if err := f.buf.Flush(); err != nil {
 			return 0, errors.WithStack(err)
@@ -153,7 +153,7 @@ func (f *file) Close() error {
 			return errors.WithStack(err)
 		}
 	}
-	if f.buf ==nil {
+	if f.buf == nil {
 		return nil
 	}
 	if err := f.buf.Flush(); err != nil {

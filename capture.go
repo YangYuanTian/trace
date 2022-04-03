@@ -73,7 +73,6 @@ func (c *capture) NewWriteCloser(stringer fmt.Stringer) io.WriteCloser {
 	}
 }
 
-
 func (c *capture) WritePcap(data []byte, id fmt.Stringer) error {
 	if !c.isCapture {
 		return nil

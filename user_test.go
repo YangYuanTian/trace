@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-
 func ErrLog() {
 	if err := recover(); err != nil {
 		fmt.Printf("%+v\n", err)
@@ -27,7 +26,7 @@ func TestCapture(t *testing.T) {
 	E(c.Start())
 
 	defer func() {
-		if er:=recover();er!=nil{
+		if er := recover(); er != nil {
 			fmt.Println(er)
 			debug.PrintStack()
 		}
@@ -35,7 +34,7 @@ func TestCapture(t *testing.T) {
 	}()
 
 	c.AddUser(ID("TanGao"), ID("LiHua"))
-	c.UseTrace(true).Trace(ID("TanGao"),true)
+	c.UseTrace(true).Trace(ID("TanGao"), true)
 	for i := 0; i < 10000000; i++ {
 		//time.Sleep(time.Second)
 		E(c.WritePcap(PacketGenerator([]byte("hello,TanGao"), 19), ID("TanGao")))
@@ -50,7 +49,7 @@ func TestCapture(t *testing.T) {
 }
 
 func TestRestart(t *testing.T) {
-	for i:=0;i<1;i++{
+	for i := 0; i < 1; i++ {
 		TestCapture(t)
 	}
 }

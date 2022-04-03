@@ -6,6 +6,7 @@ import (
 	"io"
 	"sync"
 )
+
 type ID string
 
 func (i ID) String() string {
@@ -13,10 +14,10 @@ func (i ID) String() string {
 }
 
 type user struct {
-	ids map[string]bool
+	ids     map[string]bool
 	isTrace bool
-	m   sync.Mutex
-	w   io.WriteCloser
+	m       sync.Mutex
+	w       io.WriteCloser
 }
 
 type CreateWriteCloser interface {
@@ -42,7 +43,6 @@ func (u *user) String() string {
 	return name
 }
 
-
 func (u *user) addUserID(ids ...string) *user {
 	u.m.Lock()
 	defer u.m.Unlock()
@@ -52,30 +52,30 @@ func (u *user) addUserID(ids ...string) *user {
 	return u
 }
 
-func (u *users)newUser() *user {
-	usr:= &user{ids:make(map[string]bool)}
+func (u *users) newUser() *user {
+	usr := &user{ids: make(map[string]bool)}
 	return usr
 }
 
 func (u *users) getUser(id fmt.Stringer) *user {
-	if usr:=u.findUser(id.String());usr != nil {
+	if usr := u.findUser(id.String()); usr != nil {
 		return usr
 	}
 	return u.AddUser(id)
 }
 
 func (u *users) AddUser(ids ...fmt.Stringer) (usr *user) {
-	names:=make([]string,len(ids))
-	for i,id := range ids {
+	names := make([]string, len(ids))
+	for i, id := range ids {
 		names[i] = id.String()
 	}
 	defer func() {
-		for _,id := range names {
-			u.users.LoadOrStore(id,usr)
+		for _, id := range names {
+			u.users.LoadOrStore(id, usr)
 		}
 		usr.addUserID(names...)
 	}()
-	if usr:=u.findUser(names...);usr != nil {
+	if usr := u.findUser(names...); usr != nil {
 		return usr
 	}
 	return u.newUser()
@@ -83,7 +83,7 @@ func (u *users) AddUser(ids ...fmt.Stringer) (usr *user) {
 
 func (u *users) findUser(ids ...string) *user {
 	for _, id := range ids {
-		if usr,ok:=u.users.Load(id);ok {
+		if usr, ok := u.users.Load(id); ok {
 			return usr.(*user)
 		}
 	}
@@ -97,7 +97,7 @@ func (u *users) Write(data []io.Reader, id fmt.Stringer) error {
 	}
 	usr.m.Lock()
 	defer usr.m.Unlock()
-	if usr.w == nil{
+	if usr.w == nil {
 		usr.w = u.creator.NewWriteCloser(usr)
 	}
 	for _, r := range data {
@@ -111,7 +111,7 @@ func (u *users) Write(data []io.Reader, id fmt.Stringer) error {
 func (u *users) Close() error {
 	var e error
 	u.users.Range(func(key, value interface{}) bool {
-		if value.(*user).w == nil{
+		if value.(*user).w == nil {
 			return true
 		}
 		if err := value.(*user).w.Close(); err != nil {
@@ -123,18 +123,18 @@ func (u *users) Close() error {
 	return e
 }
 
-func (u *users) Trace(id fmt.Stringer, isTrace bool) *users  {
+func (u *users) Trace(id fmt.Stringer, isTrace bool) *users {
 	u.findUser(id.String()).isTrace = isTrace
 	return u
 }
 
-func (u *users) UseTrace( isUse bool) *users {
+func (u *users) UseTrace(isUse bool) *users {
 	u.useTrace = isUse
 	return u
 }
 
-func (u *users) DelUser (id fmt.Stringer) {
-	if usr:=u.findUser(id.String());usr != nil {
+func (u *users) DelUser(id fmt.Stringer) {
+	if usr := u.findUser(id.String()); usr != nil {
 		usr.w.Close()
 		for i := range usr.ids {
 			u.users.Delete(i)
@@ -142,16 +142,16 @@ func (u *users) DelUser (id fmt.Stringer) {
 	}
 }
 
-func (u *users)GetUsrInfo(id fmt.Stringer) string {
+func (u *users) GetUsrInfo(id fmt.Stringer) string {
 	usr := u.findUser(id.String())
-	return spew.Sdump(usr.w,"isTrace:",usr.isTrace)
+	return spew.Sdump(usr.w, "isTrace:", usr.isTrace)
 }
 
-func (u* users) ListUsers() string {
+func (u *users) ListUsers() string {
 	var users []string
 	u.users.Range(func(key, value interface{}) bool {
 		users = append(users, key.(string))
 		return true
 	})
-	return spew.Sdump("isUseTrace:",u.useTrace,users)
+	return spew.Sdump("isUseTrace:", u.useTrace, users)
 }
